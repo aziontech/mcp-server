@@ -1,0 +1,42 @@
+{
+  "name": "azion-mcp-server",
+  "bucket": "",
+  "preset": "typescript",
+  "env": "production",
+  "prefix": "20250627151301",
+  "not-first-run": true,
+  "function": {
+    "id": 46063,
+    "name": "__DEFAULT__",
+    "file": ".edge/worker.js",
+    "args": "./azion/production/args.json",
+    "instance-id": 42631,
+    "instance-name": "__DEFAULT__",
+    "cache-id": 240318
+  },
+  "application": {
+    "id": 1749043776,
+    "name": "__DEFAULT__"
+  },
+  "domain": {
+    "id": 1749044960,
+    "name": "azion-mcp-server",
+    "domain_name": "o3z17ea6n3.map.azionedge.net",
+    "url": "https://o3z17ea6n3.map.azionedge.net"
+  },
+  "rt-purge": {
+    "purge_on_publish": true
+  },
+  "origin": [],
+  "rules-engine": {
+    "created": false,
+    "rules": [
+      {
+        "id": 419840,
+        "name": "Execute Edge Function",
+        "phase": "request"
+      }
+    ]
+  },
+  "cache-settings": []
+}

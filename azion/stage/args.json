@@ -1,0 +1,6 @@
+{
+    "SSO_URL": "https://stage-sso.azion.com",
+    "SSO_ORIGIN_URL": "https://stage-sso-origin.azion.com",
+    "API_URL": "https://stage-api.azion.com",
+    "DATABASE_NAME": "azioncopilotprod5"
+}
