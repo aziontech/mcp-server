@@ -21,7 +21,7 @@
   "dependencies": {
     "@clerk/backend": "^2.4.0",
     "@hono/node-server": "^1.14.3",
-    "@langchain/community": "0.3.42",
+    "@langchain/community": "1.1.14",
     "@langchain/core": "0.3.51",
     "@langchain/langgraph": "0.2.67",
     "@langchain/openai": "0.5.10",
