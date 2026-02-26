@@ -1,0 +1,45 @@
+name: Security Linter
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches:
+      - main
+      - dev
+  push:
+    branches:
+      - main
+      - dev
+  workflow_dispatch:
+
+env:
+  HUSKY: 0
+
+jobs:
+  security-linter:
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          clean: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Yarn
+        run: |
+          curl -o- -L https://yarnpkg.com/install.sh | bash -s -- --version 1.22.22
+          echo "$HOME/.yarn/bin" >> $GITHUB_PATH
+          echo "$HOME/.config/yarn/global/node_modules/.bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Run security linter
+        run: |
+          echo "Running security linter ..."
+          # Use --no-eslintrc to ignore all other configs and only use our security config
+          yarn eslint --no-eslintrc -c .eslintrc.security.json 'src/**/*.{js,ts}'
+        # ESLint will exit 0 if only warnings, exit 1 if errors
