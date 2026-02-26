@@ -21,6 +21,7 @@ env:
 jobs:
   mcp-security-check:
     name: MCP Critical Security Check
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: write
