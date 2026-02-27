@@ -1,0 +1,39 @@
+name: Deploy Azion Copilot (STAGE)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+    - dev
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Use Node.js 20.x
+      uses: actions/setup-node@v3
+      with:
+        node-version: 20
+
+    - name: Enable Corepack and prepare Yarn 1.x
+      run: |
+        corepack enable
+        corepack prepare yarn@1.22.22 --activate
+
+    - name: Install dependencies
+      run: yarn install
+
+    - name: Download Azion CLI
+      run: |
+        curl -o azionlinux https://downloads.azion.com/linux/x86_64/azion
+        sudo mv azionlinux /usr/bin/azion
+        sudo chmod u+x /usr/bin/azion
+
+    - name: Configure Azion CLI
+      run: azion -t ${{ secrets.AZION_TOKEN }}
+
+    - name: Build & Deploy
+      run: azion deploy --local --auto --debug --config-dir azion/stage
