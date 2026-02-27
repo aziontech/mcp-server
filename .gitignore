@@ -1,0 +1,11 @@
+node_modules/
+.edge
+.env
+.env.*
+!.env.sample
+dist/
+build/
+*.log
+.DS_Store
+coverage/
+*.pkl
