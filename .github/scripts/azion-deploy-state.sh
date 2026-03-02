@@ -6,13 +6,8 @@
 # Environment variable for bucket name (must be set before calling functions)
 # Example: export AZION_DEPLOY_STATE_BUCKET="my-bucket"
 
-# Array of files to manage
-FILES_LIST=(
-    "azion/production/args.json"
-    "azion/production/azion.json"
-    "azion/stage/args.json"
-    "azion/stage/azion.json"
-)
+# Default environment
+DEFAULT_ENV="stage"
 
 # Object key prefix for Edge Storage
 OBJECT_KEY_PREFIX="mcp"
@@ -23,6 +18,15 @@ validate_bucket_name() {
         echo "Error: AZION_DEPLOY_STATE_BUCKET environment variable is not set"
         exit 1
     fi
+}
+
+# Build files list based on environment
+# Arguments:
+#   $1 - env: The environment (stage or production)
+# Returns: Array of files for the environment
+build_files_list() {
+    local env="$1"
+    echo "azion/${env}/args.json" "azion/${env}/azion.json"
 }
 
 # Update an object in Edge Storage
@@ -124,16 +128,23 @@ get_object() {
     fi
 }
 
-# Process all files in FILES_LIST for upload operation
+# Process all files for upload operation
+# Arguments:
+#   $1 - env: The environment (stage or production)
 upload_all_files() {
+    local env="$1"
     local failed=0
 
-    echo "Starting upload of all files to Edge Storage..."
-    echo "Number of files: ${#FILES_LIST[@]}"
+    # Build files list for the environment
+    local files_list
+    files_list=$(build_files_list "$env")
+
+    echo "Starting upload of ${env} files to Edge Storage..."
+    echo "Environment: $env"
     echo "---"
 
-    for file_path in "${FILES_LIST[@]}"; do
-        # Build object key: prefix + file path (mcp/azion/production/args.json)
+    for file_path in $files_list; do
+        # Build object key: prefix + file path (mcp/azion/stage/args.json)
         local object_key="${OBJECT_KEY_PREFIX}/${file_path}"
 
         echo "Processing: $file_path"
@@ -149,7 +160,7 @@ upload_all_files() {
 
     echo "---"
     if [ $failed -eq 0 ]; then
-        echo "All files uploaded successfully!"
+        echo "All ${env} files uploaded successfully!"
         return 0
     else
         echo "Failed to upload $failed file(s)"
@@ -157,16 +168,23 @@ upload_all_files() {
     fi
 }
 
-# Process all files in FILES_LIST for download operation
+# Process all files for download operation
+# Arguments:
+#   $1 - env: The environment (stage or production)
 download_all_files() {
+    local env="$1"
     local failed=0
 
-    echo "Starting download of all files from Edge Storage..."
-    echo "Number of files: ${#FILES_LIST[@]}"
+    # Build files list for the environment
+    local files_list
+    files_list=$(build_files_list "$env")
+
+    echo "Starting download of ${env} files from Edge Storage..."
+    echo "Environment: $env"
     echo "---"
 
-    for file_path in "${FILES_LIST[@]}"; do
-        # Build object key: prefix + file path (mcp/azion/production/args.json)
+    for file_path in $files_list; do
+        # Build object key: prefix + file path (mcp/azion/stage/args.json)
         local object_key="${OBJECT_KEY_PREFIX}/${file_path}"
 
         echo "Processing: $file_path"
@@ -182,7 +200,7 @@ download_all_files() {
 
     echo "---"
     if [ $failed -eq 0 ]; then
-        echo "All files downloaded successfully!"
+        echo "All ${env} files downloaded successfully!"
         return 0
     else
         echo "Failed to download $failed file(s)"
@@ -192,43 +210,66 @@ download_all_files() {
 
 # Only run if script is executed directly (not sourced)
 if [ "${BASH_SOURCE[0]}" == "${0}" ]; then
-    # Check if any arguments were provided
-    if [ $# -lt 1 ]; then
+    # Parse arguments
+    command=""
+    env="$DEFAULT_ENV"
+
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --env|-e)
+                env="$2"
+                shift 2
+                ;;
+            upload|download)
+                command="$1"
+                shift
+                ;;
+            *)
+                echo "Unknown argument: $1"
+                shift
+                ;;
+        esac
+    done
+
+    # Check if command was provided
+    if [ -z "$command" ]; then
         echo "Azion Deploy State Management"
         echo ""
-        echo "Usage: $0 <command>"
+        echo "Usage: $0 <command> [--env <environment>]"
         echo ""
         echo "Commands:"
-        echo "  upload    Upload all files in FILES_LIST to Edge Storage"
-        echo "  download  Download all files in FILES_LIST from Edge Storage"
+        echo "  upload    Upload environment files to Edge Storage"
+        echo "  download  Download environment files from Edge Storage"
+        echo ""
+        echo "Options:"
+        echo "  --env, -e    Environment to manage (stage or production). Default: ${DEFAULT_ENV}"
         echo ""
         echo "Environment Variables:"
-        echo "  AZION_DEPLOY_STATE_BUCKET     The Edge Storage bucket name (required)"
-        echo ""
-        echo "Files managed:"
-        for f in "${FILES_LIST[@]}"; do
-            echo "  - $f"
-        done
+        echo "  AZION_DEPLOY_STATE_BUCKET    The Edge Storage bucket name (required)"
         echo ""
         echo "Examples:"
         echo "  export AZION_DEPLOY_STATE_BUCKET=\"my-bucket\""
-        echo "  $0 upload"
-        echo "  $0 download"
+        echo "  $0 upload                              # Upload stage files (default)"
+        echo "  $0 download --env production           # Download production files"
+        echo "  $0 upload -e stage                     # Upload stage files"
+        exit 1
+    fi
+
+    # Validate environment
+    if [ "$env" != "stage" ] && [ "$env" != "production" ]; then
+        echo "Error: Invalid environment '$env'. Must be 'stage' or 'production'"
         exit 1
     fi
 
     # Validate bucket name before proceeding
     validate_bucket_name
 
-    command="$1"
-    shift
-
     case "$command" in
         upload)
-            upload_all_files
+            upload_all_files "$env"
             ;;
         download)
-            download_all_files
+            download_all_files "$env"
             ;;
         *)
             echo "Unknown command: $command"
