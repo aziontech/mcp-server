@@ -9,6 +9,8 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      AZION_DEPLOY_STATE_BUCKET: ${{ secrets.AZION_DEPLOY_STATE_BUCKET }}
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
@@ -35,5 +37,11 @@ jobs:
     - name: Configure Azion CLI
       run: azion -t ${{ secrets.AZION_TOKEN }}
 
+    - name: Download Azion deploy state
+      run: ./.github/scripts/azion-deploy-state.sh download --env production
+
     - name: Build & Deploy
       run: azion deploy --local --auto --debug --config-dir azion/production
+
+    - name: Upload Azion deploy state
+      run: ./.github/scripts/azion-deploy-state.sh upload --env production
