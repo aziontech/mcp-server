@@ -5,9 +5,9 @@ export const tools: Tool[] = [
     createRagTool(
         "search_azion_docs_and_site",
         "Search for information about Azion Documentation and Website based on an input query",
-        `This tool provides information and assistance related to Azion's edge 
+        `This tool provides information and assistance related to Azion's
         computing platform. Use it when users have questions about Azion, this includes:
-        - Edge Computing basics and Azion's implementation (Edge applications, WAF, Function, 
+        - Computing basics and Azion's implementation (applications, WAF, Function,
          Storage, KV, SQL, Firewall, DNS, Orchestrator, Data stream, Pulse, real-time events, real-time metrics)
         - Azion's product offerings and services
         - Use cases and applications of Azion's edge platform
@@ -31,7 +31,7 @@ export const tools: Tool[] = [
         - Examples of library usage and best practices
         - Integration with Azion services via REST APIs
         - Common troubleshooting and error handling
-        - Ready-to-use code examples for Azion's Edge Computing Platform
+        - Ready-to-use code examples for Azion's Computing Platform
         - Language-specific samples (JavaScript, TypeScript, etc.)
         - Samples for different use cases (e.g., serverless functions, edge applications, APIs)
         - Integration examples with third-party services
@@ -104,20 +104,20 @@ export const tools: Tool[] = [
     ),
     createRulesEngineTool(
         "create_rules_engine",
-        "Create a rules engine for Edge Applications and Edge Firewall",
-        `-> Performs a a search to retrieve documents specific to Rules Engine for Edge Applications and Edge Firewall. 
-         Usage: 
+        "Create a rules engine for Applications and Firewall",
+        `-> Performs a a search to retrieve documents specific to Rules Engine for Applications and Firewall.
+         Usage:
             - Send your query the objective that you want to achieve with rules engine, detailing as much as possible.
             - Please provide what behavior and in which conditions this behavior should be executed inside the query.
             - On useCase, provide if it is edge_application or edge_firewall.
          To decide between both, here some differences (not exhaustive):
-         - Edge Firewall:
+         - Firewall:
             Blocking a request.
             Limiting the access rate.
             Applying a Web Application Firewall (WAF) policy.
-            Running an Edge Function for Edge Firewall with your own security code.
+            Running a Function for Firewall with your own security code.
             Monitoring traffic to identify threats.
-         - Edge Application:
+         - Application:
             Redirecting a request.
             Redirect from http to https
             Adding headers to the response
