@@ -113,7 +113,7 @@ description: Azion Deployment Execution - Deploy and Verify
 
 ## Deployment Execution
 
-This is step 2 of 3. In this step, we will deploy the configured project to Azion Edge Platform and verify it's working.
+This is step 2 of 3. In this step, we will deploy the configured project to Azion Platform and verify it's working.
 
 **IMPORTANT: Current date and time context for AI assistants - Today is ${new Date().toISOString()} - Use this as reference for any time-based operations or waiting periods.**
 
@@ -202,7 +202,7 @@ Output is a test report with:
 2. Cache Verification
    - Cache HITs: detected_or_not
    - Static Assets: cached_or_not
-   - Edge Response: confirmed_or_not
+   - Response: confirmed_or_not
 
 DO NOT:
 - Attempt complex optimizations
@@ -227,7 +227,7 @@ Verification steps:
 - Home page loads: \`curl -I http://[ip]/ -H "Host: [deployment-url]"\` (expect 200 OK)
 - Cache working: Second request shows "X-Cache-Status: HIT"
 - Static assets cached: \`/style.css\` or \`/main.js\` return HITs
-- Edge responding: Response headers show Azion edge server
+- Responding: Response headers show Azion server
 
 If tests show NOT OK:
 - Check deployment logs with \`azion logs http --tail\`
@@ -239,7 +239,7 @@ If tests show NOT OK:
 Test report summary:
 - Deployment URL: [url]
 - IP tested: [ip]
-- Edge Access: [OK/NOT OK]
+- Access: [OK/NOT OK]
 - Cache Status: [HITs detected/No HITs]
 - Static Assets: [Cached/Not cached]
 
@@ -267,7 +267,7 @@ Output is a test preparation report containing:
    - Cache Keys: identified_keys
    - Origin Settings: origin_configuration
    - Static Assets: identified_asset_types
-   - Edge Locations: available_test_locations
+   - Locations: available_test_locations
 
 DO NOT:
 - Modify cache configuration yet
@@ -311,7 +311,7 @@ Output is a test execution report with:
    - Fonts: hit_miss_ratio
    - Other Assets: hit_miss_ratio
 
-2. Edge Server Tests
+2. Server Tests
    - Response Headers: validated
    - Cache-Control: verified
    - ETag: present_or_missing
@@ -467,8 +467,8 @@ export function registerCoderStaticSiteResources(server: any) {
             num: '2', 
             name: 'execute', 
             title: 'Deployment Execution - Deploy and Verify',
-            description: 'Deploy the configured project to Azion Edge Platform and verify deployment status',
-            content: DEPLOY_STEP_2 
+            description: 'Deploy the configured project to Azion Platform and verify deployment status',
+            content: DEPLOY_STEP_2
         },
         { 
             num: '3', 

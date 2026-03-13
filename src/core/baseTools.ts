@@ -15,7 +15,7 @@ const logger = new Logger();
  * @param {string} title The title of the tool
  * @param {string} description The description of the tool
  * @param {string} collection The collection to search in.
- *  - docs: Azion Edge Functions
+ *  - docs: Azion Functions
  *  - site: Azion Site
  *  - graphl: Azion GraphQL
  *  - useCases: Azion Use Cases
@@ -55,7 +55,7 @@ export function createRagTool(
 }
 
 /**
- * Creates a tool for retrieving documents specific to Rules Engine for Edge Applications and Edge Firewall
+ * Creates a tool for retrieving documents specific to Rules Engine for Applications and Firewall
  * @param name The name of the tool
  * @param title The title of the tool
  * @param description The description of the tool

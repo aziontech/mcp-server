@@ -246,7 +246,7 @@ function buildRulesEngineQuery(useCase?: string): Record<string, string> {
 }
 
 /**
- * Retrieves documents specific to Rules Engine for Edge Applications and Edge Firewall
+ * Retrieves documents specific to Rules Engine for Applications and Firewall
  * @param useCase The use case to filter the documents. Only inform use it if the user clearly provides its needs. If you don't know, don't inform it.
  * @returns The documents
  */

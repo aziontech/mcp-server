@@ -8,7 +8,7 @@ const logger = new Logger();
 
 /**
  * Constant-time string comparison to prevent timing attacks
- * Compatible with Edge Runtime environments
+ * Compatible with Runtime environments
  */
 function timingSafeEqual(a: string, b: string): boolean {
     if (a.length !== b.length) {
