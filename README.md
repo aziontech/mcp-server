@@ -58,33 +58,63 @@ cp .env.sample .env
 
 The following environment variables are available:
 
+#### Environment
+| Variable | Description | Required |
+|---|---|---|
+| `NODE_ENV` | Runtime environment (`production`, `development`) | No |
+| `DEBUG` | Enable debug logging (`true`, `false`) | No |
+
+#### Database
+| Variable | Description | Required |
+|---|---|---|
+| `DATABASE_NAME` | Database name for local development | No |
+
+#### MCP Server Configuration
 | Variable | Description | Required |
 |---|---|---|
 | `MCP_COPILOT_SERVER_TOKEN` | Fast pass authentication token for Azion Copilot integration | No |
+| `MCP_BASE_URL` | Base URL for the MCP server | No |
+
+#### API Tokens
+| Variable | Description | Required |
+|---|---|---|
 | `AZION_TOKEN` | Azion API personal token ([create one here](https://console.azion.com/personal-tokens)) | Yes |
-| `EDGE_AI_TOKEN` | Token for Edge AI service | No |
 | `OPENAI_API_KEY` | OpenAI API key for AI features | Yes (local/personal) |
-| `EDGE_AI_URL` | Edge AI service endpoint URL | No |
+
+#### Azion Configuration
+| Variable | Description | Required |
+|---|---|---|
 | `API_ORIGIN_URL` | Internal API origin base URL (avoids CDN loop) | No |
 | `SSO_ORIGIN_URL` | Internal SSO origin URL | No |
-| `NODE_ENV` | Runtime environment (`production`, `development`) | No |
 
-### Azion CLI Configuration
+#### Edge AI Configuration
+| Variable | Description | Required |
+|---|---|---|
+| `EDGE_AI_URL` | Edge AI service endpoint URL | No |
+| `EDGE_AI_TOKEN` | Token for Edge AI service | No |
 
-For personal development, create your own configuration directory:
+### Azion CLI Configuration (v4)
+
+The project uses Azion's v4 configuration format in [`azion.config.ts`](azion.config.ts). The configuration includes:
+
+- **Build**: TypeScript preset with polyfills enabled
+- **Functions**: Edge Functions with path mapping
+- **Applications**: Rules Engine configuration with request criteria and behaviors
+- **Workloads**: Deployment strategy configuration
+
+Then link and deploy:
 ```bash
-# Create personal configuration directory
-mkdir -p azion/personal
-
 # Link your project
 azion link
 
-# Build with personal config
-azion build --config-dir azion/personal
+# Build the project
+azion build 
 
-# Deploy with personal config
-azion deploy --config-dir azion/personal
+# Deploy to Azion Platform
+azion deploy
 ```
+
+For more configuration options, visit: https://github.com/aziontech/lib/tree/main/packages/config
 
 ## Usage
 
@@ -92,10 +122,10 @@ azion deploy --config-dir azion/personal
 
 ```bash
 # Development mode (server available at http://localhost:3333)
-azion dev
+azion dev --debug
 
 # Deploy to Azion Platform
-azion deploy --config-dir azion/personal
+azion deploy
 ```
 
 ### Testing Connection
@@ -148,8 +178,9 @@ For clients supporting MCP resources:
 ### Project Structure
 
 ```
+index.ts                     # Application entry point (calls app.fire())
 src/
-├── index.ts                 # Main entry point
+├── app.ts                 # Main application (exported as default)
 ├── config/
 │   └── environment.ts       # Environment configuration and defaults
 ├── core/
