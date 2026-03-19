@@ -24,13 +24,13 @@ export default {
   },
   functions: [
     {
-      name: 'mcp-server',
+      name: '$FUNCTION_NAME',
       path: './functions/index.js'
     }
   ],
   applications: [
     {
-      name: 'mcp-server',
+      name: '$APPLICATION_NAME',
       rules: {
         request: [
           {
@@ -51,7 +51,7 @@ export default {
               {
                 type: 'run_function',
                 attributes: {
-                  value: 'mcp-server'
+                  value: '$FUNCTION_NAME'
                 }
               }
             ]
@@ -60,26 +60,26 @@ export default {
       },
       functionsInstances: [
         {
-          name: 'mcp-server',
-          ref: 'mcp-server'
+          name: '$FUNCTION_INSTANCE_NAME',
+          ref: '$FUNCTION_NAME'
         }
       ]
     }
   ],
   workloads: [
     {
-      name: 'mcp-server',
+      name: '$WORKLOAD_NAME',
       active: true,
       infrastructure: 1,
       deployments: [
         {
-          name: 'mcp-server',
+          name: '$DEPLOYMENT_NAME',
           current: true,
           active: true,
           strategy: {
             type: 'default',
             attributes: {
-              application: 'mcp-server'
+              application: '$APPLICATION_NAME'
             }
           }
         }
