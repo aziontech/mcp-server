@@ -62,7 +62,7 @@ update_object() {
 
     echo "Uploading '$source' to bucket with key '$object_key'"
 
-    azion create edge-storage object \
+    azion create storage object \
         --bucket-name "$AZION_DEPLOY_STATE_BUCKET" \
         --object-key "$object_key" \
         --source "$source"
@@ -106,9 +106,9 @@ get_object() {
             mkdir -p "$output_dir"
         fi
 
-        azion describe edge-storage object \
+        azion describe storage object \
             --bucket-name "$AZION_DEPLOY_STATE_BUCKET" \
-            --object-key "$object_key" > "$output"
+            --object-key "$object_key" --out "$output"
 
         local result=$?
         if [ $result -eq 0 ]; then
@@ -120,7 +120,7 @@ get_object() {
         return $result
     else
         # Output to stdout
-        azion describe edge-storage object \
+        azion describe storage object \
             --bucket-name "$AZION_DEPLOY_STATE_BUCKET" \
             --object-key "$object_key"
 
