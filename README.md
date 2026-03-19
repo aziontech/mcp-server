@@ -130,6 +130,106 @@ azion deploy
 
 ### Testing Connection
 
+#### Using cURL
+
+The MCP server uses JSON-RPC 2.0 protocol over HTTP with Streamable HTTP transport. You can test it directly with cURL:
+
+> **Note:** The `Accept` header must include both `application/json` and `text/event-stream` as the server uses Streamable HTTP transport.
+
+**Initialize the connection:**
+```bash
+curl -X POST https://mcp.azion.com \
+  -H "Authorization: Bearer YOUR_PERSONAL_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "initialize",
+    "params": {
+      "protocolVersion": "2024-11-05",
+      "capabilities": {},
+      "clientInfo": {
+        "name": "curl-client",
+        "version": "1.0.0"
+      }
+    }
+  }'
+```
+
+**List available tools:**
+```bash
+curl -X POST https://mcp.azion.com \
+  -H "Authorization: Bearer YOUR_PERSONAL_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 2,
+    "method": "tools/list"
+  }'
+```
+
+**Call a tool - Search CLI commands:**
+```bash
+curl -X POST https://mcp.azion.com \
+  -H "Authorization: Bearer YOUR_PERSONAL_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 3,
+    "method": "tools/call",
+    "params": {
+      "name": "search_azion_cli_commands",
+      "arguments": {
+        "query": "how to deploy an edge application",
+        "docsAmount": 3
+      }
+    }
+  }'
+```
+
+**Call a tool - Search documentation:**
+```bash
+curl -X POST https://mcp.azion.com \
+  -H "Authorization: Bearer YOUR_PERSONAL_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 4,
+    "method": "tools/call",
+    "params": {
+      "name": "search_azion_docs_and_site",
+      "arguments": {
+        "query": "edge functions basics",
+        "docsAmount": 5
+      }
+    }
+  }'
+```
+
+**Call a tool - Search code samples:**
+```bash
+curl -X POST https://mcp.azion.com \
+  -H "Authorization: Bearer YOUR_PERSONAL_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 5,
+    "method": "tools/call",
+    "params": {
+      "name": "search_azion_code_samples",
+      "arguments": {
+        "query": "storage javascript typescript",
+        "docsAmount": 3
+      }
+    }
+  }'
+```
+
 #### MCP Inspector
 Use [MCP Inspector](https://github.com/modelcontextprotocol/inspector) to validate your connection:
 
