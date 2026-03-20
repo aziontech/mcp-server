@@ -1,0 +1,164 @@
+name: MCP Security Check (Blocking)
+
+on:
+  pull_request:
+    paths:
+    - 'src/**'
+    - 'package.json'
+    - 'yarn.lock'
+    - '.github/workflows/security-scan.yml'
+    branches: [ main, dev ]
+  push:
+    paths:
+    - 'src/**'
+    - 'package.json'
+    - 'yarn.lock'
+    branches: [ main, dev ]
+
+env:
+  HUSKY: 0
+
+jobs:
+  mcp-security-check:
+    name: MCP Critical Security Check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      checks: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install OSV Scanner
+      run: |
+        curl -sSfL https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_amd64 -o osv-scanner
+        chmod +x osv-scanner
+        mkdir -p $HOME/.local/bin
+        mv osv-scanner $HOME/.local/bin/
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+    - name: Scan MCP Project
+      id: mcp-scan
+      run: |
+        echo "Scanning MCP project for vulnerabilities..."
+        osv-scanner scan \
+          --format=json \
+          --output=mcp-scan.json \
+          . || true
+
+        # Extract MCP-specific vulnerabilities
+        if [ -f mcp-scan.json ]; then
+          MCP_CRITICAL=$(jq '[.results[].packages[].vulnerabilities[] | select(.database_specific.severity == "CRITICAL")] | length' mcp-scan.json || echo 0)
+          MCP_HIGH=$(jq '[.results[].packages[].vulnerabilities[] | select(.database_specific.severity == "HIGH")] | length' mcp-scan.json || echo 0)
+          MCP_MEDIUM=$(jq '[.results[].packages[].vulnerabilities[] | select(.database_specific.severity == "MEDIUM")] | length' mcp-scan.json || echo 0)
+
+          echo "mcp_critical=$MCP_CRITICAL" >> $GITHUB_OUTPUT
+          echo "mcp_high=$MCP_HIGH" >> $GITHUB_OUTPUT
+          echo "mcp_medium=$MCP_MEDIUM" >> $GITHUB_OUTPUT
+
+          # Create detailed report
+          echo "## MCP Security Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Severity | Count | Action |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| CRITICAL | $MCP_CRITICAL | $([ $MCP_CRITICAL -gt 0 ] && echo 'BLOCKING' || echo 'Pass') |" >> $GITHUB_STEP_SUMMARY
+          echo "| HIGH | $MCP_HIGH | Warning |" >> $GITHUB_STEP_SUMMARY
+          echo "| MEDIUM | $MCP_MEDIUM | Info |" >> $GITHUB_STEP_SUMMARY
+
+          # List critical vulnerabilities
+          if [ "$MCP_CRITICAL" -gt 0 ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Critical Vulnerabilities (MUST FIX):" >> $GITHUB_STEP_SUMMARY
+            jq -r '.results[].packages[] | .package as $pkg | .vulnerabilities[] | select(.database_specific.severity == "CRITICAL") | "- **\($pkg.name)@\($pkg.version)**: \(.id) (CVSS: \(.database_specific.cvss_v3_score // "N/A"))"' mcp-scan.json >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Action Required:** Fix these vulnerabilities before merging." >> $GITHUB_STEP_SUMMARY
+          fi
+        fi
+
+    - name: Check for Critical Vulnerabilities
+      id: critical-check
+      run: |
+        CRITICAL_COUNT=${{ steps.mcp-scan.outputs.mcp_critical }}
+        if [ "$CRITICAL_COUNT" -gt 0 ]; then
+          echo "BLOCKED: $CRITICAL_COUNT critical vulnerabilities found in MCP project"
+          echo "Run 'osv-scanner fix -L yarn.lock -M package.json' to fix"
+          exit 1
+        else
+          echo "No critical vulnerabilities in MCP project"
+        fi
+
+    - name: Comment PR Status
+      if: github.event_name == 'pull_request' && always()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const critical = '${{ steps.mcp-scan.outputs.mcp_critical }}' || '0';
+          const high = '${{ steps.mcp-scan.outputs.mcp_high }}' || '0';
+          const medium = '${{ steps.mcp-scan.outputs.mcp_medium }}' || '0';
+
+          let comment = '## MCP Security Check\n\n';
+
+          if (critical === '0') {
+            comment += '**PASSED** - No critical vulnerabilities\n\n';
+          } else {
+            comment += `**BLOCKED** - ${critical} critical vulnerabilities found\n\n`;
+            comment += '**This PR cannot be merged until critical vulnerabilities are fixed.**\n\n';
+          }
+
+          comment += '### MCP Vulnerability Summary\n';
+          comment += '| Severity | Count | Status |\n';
+          comment += '|----------|-------|--------|\n';
+          comment += `| CRITICAL | ${critical} | ${critical === '0' ? 'Pass' : 'BLOCKING'} |\n`;
+          comment += `| HIGH | ${high} | Warning |\n`;
+          comment += `| MEDIUM | ${medium} | Info |\n\n`;
+
+          if (critical !== '0') {
+            comment += '### Fix Instructions\n';
+            comment += '```bash\n';
+            comment += '# Interactive fix\n';
+            comment += 'osv-scanner fix --interactive -L yarn.lock -M package.json\n\n';
+            comment += '# Or automatic patch updates\n';
+            comment += 'osv-scanner fix -L yarn.lock -M package.json --upgrade-config patch\n';
+            comment += '```\n';
+          }
+
+          comment += '\n---\n';
+          comment += '_MCP project has strict security requirements. Critical vulnerabilities block merge._';
+
+          // Post comment
+          const { data: comments } = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+          });
+
+          const botComment = comments.find(comment =>
+            comment.user.type === 'Bot' &&
+            comment.body.includes('MCP Security Check')
+          );
+
+          if (botComment) {
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: botComment.id,
+              body: comment
+            });
+          } else {
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: comment
+            });
+          }
+
+    - name: Upload MCP Scan Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: mcp-security-scan
+        path: mcp-scan.json
+        retention-days: 30
