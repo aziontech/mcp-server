@@ -9,7 +9,7 @@ const DEFAULTS = {
     SSO_ORIGIN_URL: '',
     API_URL: 'https://api.azion.com',
     API_ORIGIN_URL: '',
-    BASE_URL: 'https://mcp.azion.com',
+    MCP_BASE_URL: 'https://mcp.azion.com',
     DATABASE_NAME: 'azioncopilot',
     EDGE_AI_URL: ''
 };
@@ -46,11 +46,11 @@ export const config = {
         };
     },
     get baseUrl(): string {
-        return process.env.BASE_URL || runtimeArgs.BASE_URL || DEFAULTS.BASE_URL;
+        return process.env.MCP_BASE_URL || runtimeArgs.MCP_BASE_URL || DEFAULTS.MCP_BASE_URL;
     },
     get database() {
         return {
-            name: runtimeArgs.DATABASE_NAME || DEFAULTS.DATABASE_NAME
+            name: process.env.DATABASE_NAME || runtimeArgs.DATABASE_NAME || DEFAULTS.DATABASE_NAME
         };
     },
     get edgeAi() {

@@ -23,10 +23,27 @@ validate_bucket_name() {
 # Build files list based on environment
 # Arguments:
 #   $1 - env: The environment (stage or production)
-# Returns: Array of files for the environment
+# Returns: Array of files for the environment (format: local_path:storage_path)
 build_files_list() {
     local env="$1"
-    echo "azion/${env}/args.json" "azion/${env}/azion.json"
+    # Format: local_path:storage_path
+    # Bucket structure: $PROJECT/$ENV/$FILE_PATH
+    # Local: ./azion/${env}/args.json -> Bucket: mcp/${env}/azion/args.json
+    echo "azion/${env}/args.json:${env}/azion/args.json"
+    echo "azion/${env}/azion.json:${env}/azion/azion.json"
+}
+
+# Build root files list based on environment
+# These are files at the project root that need to be stored per environment
+# Arguments:
+#   $1 - env: The environment (stage or production)
+# Returns: Array of root files for the environment (format: local_path:storage_path)
+build_root_files_list() {
+    local env="$1"
+    # Root files stored under environment path in bucket
+    # Format: local_path:storage_path
+    # Local: ./azion.config.ts -> Bucket: mcp/${env}/azion.config.ts
+    echo "azion.config.ts:${env}/azion.config.ts"
 }
 
 # Update an object in Edge Storage
@@ -62,7 +79,7 @@ update_object() {
 
     echo "Uploading '$source' to bucket with key '$object_key'"
 
-    azion create edge-storage object \
+    azion create storage object \
         --bucket-name "$AZION_DEPLOY_STATE_BUCKET" \
         --object-key "$object_key" \
         --source "$source"
@@ -106,9 +123,9 @@ get_object() {
             mkdir -p "$output_dir"
         fi
 
-        azion describe edge-storage object \
+        azion describe storage object \
             --bucket-name "$AZION_DEPLOY_STATE_BUCKET" \
-            --object-key "$object_key" > "$output"
+            --object-key "$object_key" --out "$output"
 
         local result=$?
         if [ $result -eq 0 ]; then
@@ -120,11 +137,69 @@ get_object() {
         return $result
     else
         # Output to stdout
-        azion describe edge-storage object \
+        azion describe storage object \
             --bucket-name "$AZION_DEPLOY_STATE_BUCKET" \
             --object-key "$object_key"
 
         return $?
+    fi
+}
+
+# Process a single file entry for upload
+# Arguments:
+#   $1 - file_entry: The file entry in format "local_path:storage_path"
+#   $2 - env: The environment (for logging)
+process_upload_entry() {
+    local file_entry="$1"
+    local env="$2"
+
+    # Parse the entry
+    local local_path="${file_entry%%:*}"
+    local storage_path="${file_entry#*:}"
+
+    # Build object key: prefix + storage path
+    # Examples:
+    #   mcp/production/azion/args.json (from azion/production/args.json)
+    #   mcp/production/azion.config.ts (from ./azion.config.ts)
+    local object_key="${OBJECT_KEY_PREFIX}/${storage_path}"
+
+    echo "Processing: $local_path -> $object_key"
+
+    if update_object "$object_key" "$local_path"; then
+        echo "✓ Success: $local_path"
+        return 0
+    else
+        echo "✗ Failed: $local_path"
+        return 1
+    fi
+}
+
+# Process a single file entry for download
+# Arguments:
+#   $1 - file_entry: The file entry in format "local_path:storage_path"
+#   $2 - env: The environment (for logging)
+process_download_entry() {
+    local file_entry="$1"
+    local env="$2"
+
+    # Parse the entry
+    local local_path="${file_entry%%:*}"
+    local storage_path="${file_entry#*:}"
+
+    # Build object key: prefix + storage path
+    # Examples:
+    #   mcp/production/azion/args.json (to azion/production/args.json)
+    #   mcp/production/azion.config.ts (to ./azion.config.ts)
+    local object_key="${OBJECT_KEY_PREFIX}/${storage_path}"
+
+    echo "Processing: $object_key -> $local_path"
+
+    if get_object "$object_key" "$local_path"; then
+        echo "✓ Success: $local_path"
+        return 0
+    else
+        echo "✗ Failed: $local_path"
+        return 1
     fi
 }
 
@@ -135,24 +210,33 @@ upload_all_files() {
     local env="$1"
     local failed=0
 
-    # Build files list for the environment
-    local files_list
-    files_list=$(build_files_list "$env")
-
     echo "Starting upload of ${env} files to Edge Storage..."
     echo "Environment: $env"
     echo "---"
 
-    for file_path in $files_list; do
-        # Build object key: prefix + file path (mcp/azion/stage/args.json)
-        local object_key="${OBJECT_KEY_PREFIX}/${file_path}"
+    # Process environment-specific files (azion/${env}/*)
+    local files_list
+    files_list=$(build_files_list "$env")
 
-        echo "Processing: $file_path"
-
-        if update_object "$object_key" "$file_path"; then
-            echo "✓ Success: $file_path"
+    echo "Uploading environment files..."
+    for file_entry in $files_list; do
+        if process_upload_entry "$file_entry" "$env"; then
+            :
         else
-            echo "✗ Failed: $file_path"
+            ((failed++))
+        fi
+        echo ""
+    done
+
+    # Process root files (azion.config.ts, etc.)
+    local root_files_list
+    root_files_list=$(build_root_files_list "$env")
+
+    echo "Uploading root files..."
+    for file_entry in $root_files_list; do
+        if process_upload_entry "$file_entry" "$env"; then
+            :
+        else
             ((failed++))
         fi
         echo ""
@@ -175,24 +259,33 @@ download_all_files() {
     local env="$1"
     local failed=0
 
-    # Build files list for the environment
-    local files_list
-    files_list=$(build_files_list "$env")
-
     echo "Starting download of ${env} files from Edge Storage..."
     echo "Environment: $env"
     echo "---"
 
-    for file_path in $files_list; do
-        # Build object key: prefix + file path (mcp/azion/stage/args.json)
-        local object_key="${OBJECT_KEY_PREFIX}/${file_path}"
+    # Process environment-specific files (azion/${env}/*)
+    local files_list
+    files_list=$(build_files_list "$env")
 
-        echo "Processing: $file_path"
-
-        if get_object "$object_key" "$file_path"; then
-            echo "✓ Success: $file_path"
+    echo "Downloading environment files..."
+    for file_entry in $files_list; do
+        if process_download_entry "$file_entry" "$env"; then
+            :
         else
-            echo "✗ Failed: $file_path"
+            ((failed++))
+        fi
+        echo ""
+    done
+
+    # Process root files (azion.config.ts, etc.)
+    local root_files_list
+    root_files_list=$(build_root_files_list "$env")
+
+    echo "Downloading root files..."
+    for file_entry in $root_files_list; do
+        if process_download_entry "$file_entry" "$env"; then
+            :
+        else
             ((failed++))
         fi
         echo ""

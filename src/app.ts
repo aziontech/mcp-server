@@ -265,4 +265,4 @@ app.delete('/', async (c) => {
   }, 405);
 });
 
-app.fire();
+export default app;
