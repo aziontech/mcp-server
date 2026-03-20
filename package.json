@@ -28,7 +28,7 @@
     "edge-runtime": "^4.0.1",
     "express": "^5.1.0",
     "fetch-to-node": "^2.1.0",
-    "hono": "^4.7.4",
+    "hono": "^4.12.7",
     "ip-cidr": "^4.0.2",
     "langchain": "^0.3.6",
     "mcp-framework": "^0.2.13",
