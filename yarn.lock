@@ -1322,10 +1322,10 @@
     process "^0.11.10"
     stream-browserify "^3.0.0"
 
-"@hono/node-server@^1.14.3":
-  version "1.14.3"
-  resolved "https://registry.yarnpkg.com/@hono/node-server/-/node-server-1.14.3.tgz#171d1974bd7b5db24eae0509fb229dedf790f192"
-  integrity sha512-KuDMwwghtFYSmIpr4WrKs1VpelTrptvJ+6x6mbUcZnFcc213cumTF5BdqfHyW93B19TNI4Vaev14vOI2a0Ie3w==
+"@hono/node-server@^1.19.13":
+  version "1.19.13"
+  resolved "https://registry.yarnpkg.com/@hono/node-server/-/node-server-1.19.13.tgz#4838c766a1237253d4dde3281cf7d5c65186fd32"
+  integrity sha512-TsQLe4i2gvoTtrHje625ngThGBySOgSK3Xo2XRYOdqGN1teR8+I7vchQC46uLJi8OF62YTYA3AhSpumtkhsaKQ==
 
 "@humanwhocodes/config-array@^0.13.0":
   version "0.13.0"
