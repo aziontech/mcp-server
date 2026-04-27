@@ -41,7 +41,7 @@ jobs:
       run: ./.github/scripts/azion-deploy-state.sh download --env production
 
     - name: Build & Deploy
-      run: azion deploy --local --auto --debug --config-dir azion/production
+      run: BUILD_ENV=production azion deploy --local --auto --debug --config-dir azion/production
 
     - name: Upload Azion deploy state
       run: ./.github/scripts/azion-deploy-state.sh upload --env production
