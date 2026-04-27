@@ -41,7 +41,7 @@ jobs:
       run: ./.github/scripts/azion-deploy-state.sh download --env stage
 
     - name: Build & Deploy
-      run: azion deploy --local --auto --debug --config-dir azion/stage
+      run: BUILD_ENV=stage azion deploy --local --auto --debug --config-dir azion/stage
 
     - name: Upload Azion deploy state
       run: ./.github/scripts/azion-deploy-state.sh upload --env stage
