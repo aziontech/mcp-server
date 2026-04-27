@@ -16,6 +16,13 @@
  * For more configuration options, visit:
  * https://github.com/aziontech/lib/tree/main/packages/config
  */
+import { WorkloadTLSCipher, WorkloadTLSVersion } from "azion/config";
+
+// @ts-ignore
+const buildEnv = process.env.BUILD_ENV || 'stage'
+const domains = buildEnv === 'production'
+    ? ['mcp.azion.com']
+    : ['stage-mcp.azion.com']
 
 export default {
   build: {
@@ -70,7 +77,13 @@ export default {
     {
       name: '$WORKLOAD_NAME',
       active: true,
+      domains,
       infrastructure: 1,
+      tls: {
+        certificate: null, // Forcing to use Azion(SAN) Digital Certificate
+        ciphers: 7 as WorkloadTLSCipher,
+        minimumVersion: 'tls_1_3' as WorkloadTLSVersion,
+      },
       deployments: [
         {
           name: '$DEPLOYMENT_NAME',
