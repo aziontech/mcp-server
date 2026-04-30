@@ -17,7 +17,7 @@
   "author": "aziontech",
   "license": "ISC",
   "dependencies": {
-    "@clerk/backend": "^2.4.0",
+    "@clerk/backend": "^2.33.3",
     "@hono/node-server": "^1.14.3",
     "@langchain/community": "0.3.42",
     "@langchain/core": "0.3.51",
