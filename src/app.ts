@@ -1,8 +1,7 @@
 //@ts-ignore
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import { getServer } from '@/core/server';
 import { Hono } from 'hono';
-import { toFetchResponse, toReqRes } from 'fetch-to-node';
 import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import { authenticate } from '@/middlewares/auth';
 import { Logger } from '@/helpers/logger';
@@ -180,8 +179,6 @@ app.post('/', async (c) => {
   const logger = c.get('logger') as any
 
   try {
-    const { req, res } = toReqRes(c.req.raw);
-
     // Get authentication data from context (set by middleware)
     // @ts-ignore - Hono context types not configured
     const authentication = c.get('authentication') as any
@@ -192,44 +189,41 @@ app.post('/', async (c) => {
     // (AZION_TOKEN for fastpass, user token for others)
     const server = getServer(authentication.apiProfile, authentication.token);
 
-    let authInfo: AuthInfo = {
+    const authInfo: AuthInfo = {
       token: authHeader?.replace("Bearer ", "")?.replace("Token ", "") || "",
       clientId: "",
       scopes: []
     }
 
-    const transport: StreamableHTTPServerTransport = new StreamableHTTPServerTransport({
+    // The Azion edge runtime is a Web Standard environment, so we drive the transport
+    // directly with the Hono Request/Response instead of bridging through Node-compat
+    // shims. JSON response mode returns a single, complete response, keeping the
+    // request/response lifecycle deterministic for these stateless tools.
+    const transport = new WebStandardStreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
+      enableJsonResponse: true,
     });
-
-    (req as any).auth = authInfo;
 
     await server.connect(transport);
 
     const body = await c.req.json();
+    const response = await transport.handleRequest(c.req.raw, { authInfo, parsedBody: body });
 
-    await transport.handleRequest(req, res, body)
+    logger.logInfo('Connection closed.');
+    transport.close();
+    server.close();
 
-    res.on('close', () => {
-      logger.logInfo('Connection closed.');
-      transport.close();
-      server.close();
-    });
-
-    return toFetchResponse(res);
+    return response;
   } catch (error) {
     logger.logError(error);
-    const { req, res } = toReqRes(c.req.raw);
-    if (!res.headersSent) {
-      res.writeHead(500).end(JSON.stringify({
-        jsonrpc: '2.0',
-        error: {
-          code: -32603,
-          message: 'Internal server error',
-        },
-        id: null,
-      }));
-    }
+    return c.json({
+      jsonrpc: '2.0',
+      error: {
+        code: -32603,
+        message: 'Internal server error',
+      },
+      id: null,
+    }, 500);
   }
 });
 
