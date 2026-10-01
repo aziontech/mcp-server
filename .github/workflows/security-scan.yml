@@ -1,164 +1,175 @@
 name: MCP Security Check (Blocking)
 
+# Public repository: aziontech/azion-action-security is private and cannot be
+# used here, so the same capabilities run inline with pinned, checksum-verified
+# tools.
+#   - secrets:      gitleaks (tree + new commits; full history weekly)
+#   - SAST:         semgrep (registry rules, ERROR severity blocks)
+#   - dependencies: osv-scanner over every manifest/lockfile (HIGH/CRITICAL block;
+#                   previously only CRITICAL blocked)
+
+# No path filters: `Security Scan` is a required check, so it must report on
+# every pull request.
 on:
-  pull_request:
-    paths:
-    - 'src/**'
-    - 'package.json'
-    - 'yarn.lock'
-    - '.github/workflows/security-scan.yml'
-    branches: [ main, dev ]
   push:
-    paths:
-    - 'src/**'
-    - 'package.json'
-    - 'yarn.lock'
-    branches: [ main, dev ]
+    branches: [main, dev]
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main, dev]
+  schedule:
+    - cron: '41 4 * * 3'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ci-security-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  HUSKY: 0
+  GITLEAKS_VERSION: 8.30.1
+  GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+  OSV_VERSION: v2.4.0
+  OSV_SHA256: 15314940c10d26af9c6649f150b8a47c1262e8fc7e17b1d1029b0e479e8ed8a0
+  SEMGREP_VERSION: 1.176.0
 
 jobs:
-  mcp-security-check:
-    name: MCP Critical Security Check
+  security:
+    name: Security Scan
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
-      pull-requests: write
-      checks: write
-
+      pull-requests: write # PR comment with the dependency scan summary
+    env:
+      HUSKY: 0
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0 # full history: secrets hide in old commits
+          persist-credentials: false
 
-    - name: Install OSV Scanner
-      run: |
-        curl -sSfL https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_amd64 -o osv-scanner
-        chmod +x osv-scanner
-        mkdir -p $HOME/.local/bin
-        mv osv-scanner $HOME/.local/bin/
-        echo "$HOME/.local/bin" >> $GITHUB_PATH
+      - name: Install pinned tools
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -sSLf -o "$RUNNER_TEMP/gitleaks.tar.gz" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  $RUNNER_TEMP/gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/gitleaks.tar.gz" -C "$RUNNER_TEMP/bin" gitleaks
+          curl -sSLf -o "$RUNNER_TEMP/bin/osv-scanner" \
+            "https://github.com/google/osv-scanner/releases/download/${OSV_VERSION}/osv-scanner_linux_amd64"
+          echo "${OSV_SHA256}  $RUNNER_TEMP/bin/osv-scanner" | sha256sum -c -
+          chmod +x "$RUNNER_TEMP/bin/osv-scanner"
+          python3 -m pip install --quiet --disable-pip-version-check --user "semgrep==${SEMGREP_VERSION}"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
-    - name: Scan MCP Project
-      id: mcp-scan
-      run: |
-        echo "Scanning MCP project for vulnerabilities..."
-        osv-scanner scan \
-          --format=json \
-          --output=mcp-scan.json \
-          . || true
-
-        # Extract MCP-specific vulnerabilities
-        if [ -f mcp-scan.json ]; then
-          MCP_CRITICAL=$(jq '[.results[].packages[].vulnerabilities[] | select(.database_specific.severity == "CRITICAL")] | length' mcp-scan.json || echo 0)
-          MCP_HIGH=$(jq '[.results[].packages[].vulnerabilities[] | select(.database_specific.severity == "HIGH")] | length' mcp-scan.json || echo 0)
-          MCP_MEDIUM=$(jq '[.results[].packages[].vulnerabilities[] | select(.database_specific.severity == "MEDIUM")] | length' mcp-scan.json || echo 0)
-
-          echo "mcp_critical=$MCP_CRITICAL" >> $GITHUB_OUTPUT
-          echo "mcp_high=$MCP_HIGH" >> $GITHUB_OUTPUT
-          echo "mcp_medium=$MCP_MEDIUM" >> $GITHUB_OUTPUT
-
-          # Create detailed report
-          echo "## MCP Security Scan Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Severity | Count | Action |" >> $GITHUB_STEP_SUMMARY
-          echo "|----------|-------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| CRITICAL | $MCP_CRITICAL | $([ $MCP_CRITICAL -gt 0 ] && echo 'BLOCKING' || echo 'Pass') |" >> $GITHUB_STEP_SUMMARY
-          echo "| HIGH | $MCP_HIGH | Warning |" >> $GITHUB_STEP_SUMMARY
-          echo "| MEDIUM | $MCP_MEDIUM | Info |" >> $GITHUB_STEP_SUMMARY
-
-          # List critical vulnerabilities
-          if [ "$MCP_CRITICAL" -gt 0 ]; then
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### Critical Vulnerabilities (MUST FIX):" >> $GITHUB_STEP_SUMMARY
-            jq -r '.results[].packages[] | .package as $pkg | .vulnerabilities[] | select(.database_specific.severity == "CRITICAL") | "- **\($pkg.name)@\($pkg.version)**: \(.id) (CVSS: \(.database_specific.cvss_v3_score // "N/A"))"' mcp-scan.json >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Action Required:** Fix these vulnerabilities before merging." >> $GITHUB_STEP_SUMMARY
+      - name: Secret scanning (gitleaks)
+        if: ${{ !cancelled() }}
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          # Current tree on every run; new commits on PRs and pushes; the full
+          # history on the weekly schedule and on manual runs.
+          status=0
+          gitleaks detect --source . --no-git --no-banner --redact --verbose || status=1
+          case "$EVENT_NAME" in
+            pull_request) range="${PR_BASE}..${PR_HEAD}" ;;
+            push) range="${PUSH_BEFORE}..${GITHUB_SHA}"
+                  git cat-file -e "${PUSH_BEFORE}^{commit}" 2>/dev/null || range="${GITHUB_SHA}^!" ;;
+            *) range="" ;;
+          esac
+          if [ -n "$range" ]; then
+            gitleaks detect --source . --no-banner --redact --verbose --log-opts="$range" || status=1
+          else
+            gitleaks detect --source . --no-banner --redact --verbose || status=1
           fi
-        fi
+          exit "$status"
 
-    - name: Check for Critical Vulnerabilities
-      id: critical-check
-      run: |
-        CRITICAL_COUNT=${{ steps.mcp-scan.outputs.mcp_critical }}
-        if [ "$CRITICAL_COUNT" -gt 0 ]; then
-          echo "BLOCKED: $CRITICAL_COUNT critical vulnerabilities found in MCP project"
-          echo "Run 'osv-scanner fix -L yarn.lock -M package.json' to fix"
-          exit 1
-        else
-          echo "No critical vulnerabilities in MCP project"
-        fi
+      - name: SAST (semgrep)
+        if: ${{ !cancelled() }}
+        # `--config auto` selects registry rules for the detected languages and
+        # requires semgrep metrics to be enabled.
+        run: semgrep scan --config auto --disable-nosem --severity ERROR --error .
 
-    - name: Comment PR Status
-      if: github.event_name == 'pull_request' && always()
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const critical = '${{ steps.mcp-scan.outputs.mcp_critical }}' || '0';
-          const high = '${{ steps.mcp-scan.outputs.mcp_high }}' || '0';
-          const medium = '${{ steps.mcp-scan.outputs.mcp_medium }}' || '0';
-
-          let comment = '## MCP Security Check\n\n';
-
-          if (critical === '0') {
-            comment += '**PASSED** - No critical vulnerabilities\n\n';
-          } else {
-            comment += `**BLOCKED** - ${critical} critical vulnerabilities found\n\n`;
-            comment += '**This PR cannot be merged until critical vulnerabilities are fixed.**\n\n';
+      - name: Dependency scanning (osv-scanner)
+        id: osv
+        if: ${{ !cancelled() }}
+        run: |
+          set +e
+          osv-scanner scan --config=/dev/null --recursive .
+          osv-scanner scan --config=/dev/null --recursive --format json --output mcp-scan.json . >/dev/null 2>&1
+          set -e
+          count() {
+            jq --argjson lo "$1" --argjson hi "$2" '[.results[]?.packages[]?.groups[]?
+              | (.max_severity // "0" | tonumber? // 0) | select(. >= $lo and . < $hi)] | length' mcp-scan.json
           }
+          critical=$(count 9 11); high=$(count 7 9); medium=$(count 4 7)
+          {
+            echo "critical=$critical"
+            echo "high=$high"
+            echo "medium=$medium"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "## MCP Security Scan Results"
+            echo
+            echo "| Severity | Count | Action |"
+            echo "|----------|-------|--------|"
+            echo "| CRITICAL | $critical | $([ "$critical" -gt 0 ] && echo BLOCKING || echo Pass) |"
+            echo "| HIGH | $high | $([ "$high" -gt 0 ] && echo BLOCKING || echo Pass) |"
+            echo "| MEDIUM | $medium | Info |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          # Block on HIGH/CRITICAL (CVSS >= 7.0); lower severities are reported above.
+          if [ $((critical + high)) -gt 0 ]; then
+            echo "::error::HIGH/CRITICAL vulnerabilities in dependencies:"
+            jq -r '[.results[]?.packages[]? | .package as $p | .groups[]?
+              | select((.max_severity // "0" | tonumber? // 0) >= 7)
+              | "\($p.name)@\($p.version) \(.ids | join(","))"] | unique | .[]' mcp-scan.json
+            echo "Run 'osv-scanner fix -L yarn.lock -M package.json' to see the available fixes"
+            exit 1
+          fi
+          echo "No HIGH/CRITICAL dependency vulnerabilities"
 
-          comment += '### MCP Vulnerability Summary\n';
-          comment += '| Severity | Count | Status |\n';
-          comment += '|----------|-------|--------|\n';
-          comment += `| CRITICAL | ${critical} | ${critical === '0' ? 'Pass' : 'BLOCKING'} |\n`;
-          comment += `| HIGH | ${high} | Warning |\n`;
-          comment += `| MEDIUM | ${medium} | Info |\n\n`;
+      - name: Comment PR status
+        if: ${{ github.event_name == 'pull_request' && !cancelled() && steps.osv.outputs.critical != '' }}
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        env:
+          CRITICAL: ${{ steps.osv.outputs.critical }}
+          HIGH: ${{ steps.osv.outputs.high }}
+          MEDIUM: ${{ steps.osv.outputs.medium }}
+        with:
+          script: |
+            const { CRITICAL: critical, HIGH: high, MEDIUM: medium } = process.env;
+            const blocked = Number(critical) + Number(high) > 0;
+            let comment = '## MCP Security Check\n\n';
+            comment += blocked
+              ? `**BLOCKED** - ${critical} critical and ${high} high vulnerabilities found\n\n`
+              : '**PASSED** - No critical or high vulnerabilities\n\n';
+            comment += '| Severity | Count | Status |\n|----------|-------|--------|\n';
+            comment += `| CRITICAL | ${critical} | ${critical === '0' ? 'Pass' : 'BLOCKING'} |\n`;
+            comment += `| HIGH | ${high} | ${high === '0' ? 'Pass' : 'BLOCKING'} |\n`;
+            comment += `| MEDIUM | ${medium} | Info |\n`;
+            if (blocked) {
+              comment += '\n```bash\nosv-scanner fix -L yarn.lock -M package.json --upgrade-config patch\n```\n';
+            }
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number });
+            const existing = comments.find((c) => c.user.type === 'Bot' && c.body.includes('MCP Security Check'));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body: comment });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body: comment });
+            }
 
-          if (critical !== '0') {
-            comment += '### Fix Instructions\n';
-            comment += '```bash\n';
-            comment += '# Interactive fix\n';
-            comment += 'osv-scanner fix --interactive -L yarn.lock -M package.json\n\n';
-            comment += '# Or automatic patch updates\n';
-            comment += 'osv-scanner fix -L yarn.lock -M package.json --upgrade-config patch\n';
-            comment += '```\n';
-          }
-
-          comment += '\n---\n';
-          comment += '_MCP project has strict security requirements. Critical vulnerabilities block merge._';
-
-          // Post comment
-          const { data: comments } = await github.rest.issues.listComments({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            issue_number: context.issue.number,
-          });
-
-          const botComment = comments.find(comment =>
-            comment.user.type === 'Bot' &&
-            comment.body.includes('MCP Security Check')
-          );
-
-          if (botComment) {
-            await github.rest.issues.updateComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              comment_id: botComment.id,
-              body: comment
-            });
-          } else {
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: comment
-            });
-          }
-
-    - name: Upload MCP Scan Results
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: mcp-security-scan
-        path: mcp-scan.json
-        retention-days: 30
+      - name: Upload scan results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: mcp-security-scan
+          path: mcp-scan.json
+          if-no-files-found: ignore
+          retention-days: 30
