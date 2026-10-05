@@ -112,3 +112,32 @@ yarn type-check
 
 To ensure that all commits follow the semantic commit pattern, we have pre-commit hooks configured via Husky.
 The hooks are automatically set up when you run `yarn install`.
+
+#### Pull request titles
+
+We follow [Conventional Commits](https://www.conventionalcommits.org/). PR titles are checked in CI (`PR Title` workflow) and may carry a Jira key prefix:
+
+```
+<type>[(scope)]: <description>
+[ENG-123] fix(auth): reject expired tokens
+[NO-ISSUE] docs: update the cURL examples
+```
+
+Types: `feat`, `fix`, `docs`, `chore`, `ci`, `test`, `refactor`, `perf`, `build`, `revert`.
+
+#### Tests
+
+Functional tests for the HTTP app live in `tests/vitest/` and run in CI on every pull request:
+
+```bash
+yarn install
+cd tests/vitest && npm ci && npm test
+```
+
+#### Versioning
+
+Releases are tagged with SemVer (`vX.Y.Z`) and recorded in `CHANGELOG.md`.
+
+#### Security
+
+Do not open public issues for vulnerabilities; follow [SECURITY.md](SECURITY.md).
