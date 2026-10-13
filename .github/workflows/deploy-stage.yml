@@ -6,17 +6,23 @@ on:
     branches:
     - dev
 
+permissions: {}
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     env:
       AZION_DEPLOY_STATE_BUCKET: ${{ secrets.AZION_DEPLOY_STATE_BUCKET }}
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@a37ce9120846195fa4ece8f58b268e6043cb2f26 # v3.7.0
+      with:
+        persist-credentials: false
 
     - name: Use Node.js 20.x
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@3235b876344d2a9aa001b8d1453c930bba69e610 # v3.9.1
       with:
         node-version: 20
 
@@ -35,7 +41,9 @@ jobs:
         sudo chmod u+x /usr/bin/azion
 
     - name: Configure Azion CLI
-      run: azion -t ${{ secrets.AZION_TOKEN }}
+      env:
+        AZION_TOKEN: ${{ secrets.AZION_TOKEN }}
+      run: azion -t "$AZION_TOKEN"
 
     - name: Download Azion deploy state
       run: ./.github/scripts/azion-deploy-state.sh download --env stage

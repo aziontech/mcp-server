@@ -136,10 +136,12 @@ The MCP server uses JSON-RPC 2.0 protocol over HTTP with Streamable HTTP transpo
 
 > **Note:** The `Accept` header must include both `application/json` and `text/event-stream` as the server uses Streamable HTTP transport.
 
+The examples read your Azion Personal Token from the `AZION_PERSONAL_TOKEN` environment variable.
+
 **Initialize the connection:**
 ```bash
 curl -X POST https://mcp.azion.com \
-  -H "Authorization: Bearer YOUR_PERSONAL_TOKEN" \
+  -H "Authorization: Bearer $AZION_PERSONAL_TOKEN" \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
   -d '{
@@ -160,7 +162,7 @@ curl -X POST https://mcp.azion.com \
 **List available tools:**
 ```bash
 curl -X POST https://mcp.azion.com \
-  -H "Authorization: Bearer YOUR_PERSONAL_TOKEN" \
+  -H "Authorization: Bearer $AZION_PERSONAL_TOKEN" \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
   -d '{
@@ -173,7 +175,7 @@ curl -X POST https://mcp.azion.com \
 **Call a tool - Search CLI commands:**
 ```bash
 curl -X POST https://mcp.azion.com \
-  -H "Authorization: Bearer YOUR_PERSONAL_TOKEN" \
+  -H "Authorization: Bearer $AZION_PERSONAL_TOKEN" \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
   -d '{
@@ -193,7 +195,7 @@ curl -X POST https://mcp.azion.com \
 **Call a tool - Search documentation:**
 ```bash
 curl -X POST https://mcp.azion.com \
-  -H "Authorization: Bearer YOUR_PERSONAL_TOKEN" \
+  -H "Authorization: Bearer $AZION_PERSONAL_TOKEN" \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
   -d '{
@@ -213,7 +215,7 @@ curl -X POST https://mcp.azion.com \
 **Call a tool - Search code samples:**
 ```bash
 curl -X POST https://mcp.azion.com \
-  -H "Authorization: Bearer YOUR_PERSONAL_TOKEN" \
+  -H "Authorization: Bearer $AZION_PERSONAL_TOKEN" \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
   -d '{
